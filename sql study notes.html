@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQL Query Performance Optimization</title>
+    <style>
+        body {
+            background-color: #e8dcb5; /* Dark cream background */
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            font-size: 1.1em; /* Make normal text slightly bigger */
+        }
+        h1 {
+            color: #5a4a42;
+            border-bottom: 2px solid #5a4a42;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #6b5b4e;
+            margin-top: 30px;
+            border-left: 4px solid #6b5b4e;
+            padding-left: 10px;
+            font-size: 1.3em; /* Make section headings larger */
+        }
+        
+        p {
+            font-size: 1.1em; /* Make paragraphs slightly larger */
+        }
+        
+        li {
+            margin-bottom: 8px;
+            font-size: 1.1em; /* Make list items slightly larger */
+        }
+        ul {
+            list-style-type: square;
+        }
+        li {
+            margin-bottom: 8px;
+        }
+        code {
+            background-color: #2d2d2d;
+            color: #f8f8f2;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: Consolas, Monaco, 'Courier New', monospace;
+        }
+        /* SQL syntax highlighting */
+        .sql-keyword {
+            color: #a49ad4; /* Pink */
+            font-weight: normal; /* Change from bold to normal */
+            font-size: 0.6em; /* Keep the small size */
+        }
+        .sql-function {
+            color: #66d9ef; /* Blue */
+            font-size: 0.6em; /* Make SQL functions smaller */
+        }
+        .sql-operator {
+            color: #fd971f; /* Orange */
+            font-size: 0.6em; /* Make SQL operators smaller */
+        }
+        .sql-value {
+            color: #a6e22e; /* Green */
+            font-size: 0.6em; /* Make SQL values smaller */
+        }
+        .sql-comment {
+            color: #7d775d; /* Gray */
+            font-style: italic;
+            font-size: 0.6em; /* Make SQL comments smaller */
+        }
+        /* Code block styling */
+        pre.sql-code {
+            background-color: #272822;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 15px 0;
+            border-left: 4px solid #f92672;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            font-size: 0.6em; /* Make all SQL code smaller */
+            line-height: 1.4; /* Adjust line height for better readability */
+        }
+        .footer {
+            margin-top: 40px;
+            font-style: italic;
+            text-align: center;
+            border-top: 1px solid #6b5b4e;
+            padding-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>TL;DR: SQL Query Performance Optimization</h1>
+    
+    <h2>Indexing Strategies</h2>
+    <ul>
+        <li>Create indexes on frequently queried columns</li>
+        <li>Use composite indexes for multiple column filters</li>
+        <li>Consider clustered indexes for range queries</li>
+        <li>Add indexes to foreign keys and JOIN conditions</li>
+    </ul>
+    
+    <h2>Query Optimization</h2>
+    <ul>
+        <li>Use <code>EXPLAIN</code> to analyze query plans</li>
+        <li>Avoid <code>SELECT *</code> - only fetch needed columns</li>
+        <li>Minimize subqueries; use JOINs instead</li>
+        <li>Use WHERE clauses before GROUP BY/HAVING</li>
+        <li>Limit result sets with <code>LIMIT</code>/<code>TOP</code></li>
+    </ul>
+    
+    <h2>Schema Design</h2>
+    <ul>
+        <li>Normalize to reduce redundancy</li>
+        <li>Denormalize selectively for read-heavy workloads</li>
+        <li>Choose appropriate data types (smallest possible)</li>
+        <li>Partition large tables</li>
+    </ul>
+    
+    <h2>Database Tuning</h2>
+    <ul>
+        <li>Update statistics regularly</li>
+        <li>Increase memory allocation for database cache</li>
+        <li>Optimize tempdb configuration (SQL Server)</li>
+        <li>Adjust connection pool settings</li>
+    </ul>
+    
+    <h2>Advanced Techniques</h2>
+    <ul>
+        <li>Use materialized views for complex queries</li>
+        <li>Consider query hints as last resort</li>
+        <li>Implement caching at application level</li>
+        <li>Use stored procedures for frequently executed queries</li>
+    </ul>
+    
+    <h1>Practical Examples of Indexing Strategies</h1>
+    
+    <h2>1. Create Indexes on Frequently Queried Columns</h2>
+    <p><strong>Problem</strong>: Slow queries filtering on a commonly used column.<br>
+    <strong>Solution</strong>: Add a single-column index.</p>
+    
+    <pre class="sql-code"><span class="sql-comment">-- Before: Slow query on 'email' column</span>
+<span class="sql-keyword">SELECT</span> * <span class="sql-keyword">FROM</span> users <span class="sql-keyword">WHERE</span> email <span class="sql-operator">=</span> <span class="sql-value">'user@example.com'</span>;
+
+<span class="sql-comment">-- Create an index</span>
+<span class="sql-keyword">CREATE INDEX</span> idx_users_email <span class="sql-keyword">ON</span> users(email);
+
+<span class="sql-comment">-- After: Faster lookup due to index</span></pre>
+    
+    <h2>2. Use Composite Indexes for Multiple Column Filters</h2>
+    <p><strong>Problem</strong>: Slow query filtering on multiple columns.<br>
+    <strong>Solution</strong>: Create a composite (multi-column) index.</p>
+    
+    <pre class="sql-code"><span class="sql-comment">-- Before: Slow query filtering on both 'department_id' and 'salary'</span>
+<span class="sql-keyword">SELECT</span> * <span class="sql-keyword">FROM</span> employees
+<span class="sql-keyword">WHERE</span> department_id <span class="sql-operator">=</span> <span class="sql-value">5</span> <span class="sql-keyword">AND</span> salary <span class="sql-operator">></span> <span class="sql-value">50000</span>;
+
+<span class="sql-comment">-- Create a composite index</span>
+<span class="sql-keyword">CREATE INDEX</span> idx_employees_dept_salary <span class="sql-keyword">ON</span> employees(department_id, salary);
+
+<span class="sql-comment">-- After: Faster due to covering both conditions in one index</span></pre>
+    
+    <h2>3. Consider Clustered Indexes for Range Queries</h2>
+    <p><strong>Problem</strong>: Slow range queries (e.g., date ranges).<br>
+    <strong>Solution</strong>: Use a clustered index (reorders table physically).</p>
+    
+    <pre class="sql-code"><span class="sql-comment">-- Before: Slow date range scan</span>
+<span class="sql-keyword">SELECT</span> * <span class="sql-keyword">FROM</span> orders
+<span class="sql-keyword">WHERE</span> order_date <span class="sql-keyword">BETWEEN</span> <span class="sql-value">'2023-01-01'</span> <span class="sql-keyword">AND</span> <span class="sql-value">'2023-12-31'</span>;
+
+<span class="sql-comment">-- Create a clustered index (syntax varies by DB)</span>
+<span class="sql-comment">-- SQL Server:</span>
+<span class="sql-keyword">CREATE CLUSTERED INDEX</span> idx_orders_date <span class="sql-keyword">ON</span> orders(order_date);
+
+<span class="sql-comment">-- MySQL (InnoDB uses PK as clustered index, so adjust PK if needed)</span>
+<span class="sql-keyword">ALTER TABLE</span> orders <span class="sql-keyword">ADD PRIMARY KEY</span> (order_id, order_date);
+
+<span class="sql-comment">-- After: Faster range scans since rows are physically ordered</span></pre>
+    
+    <h2>4. Add Indexes to Foreign Keys and JOIN Conditions</h2>
+    <p><strong>Problem</strong>: Slow JOINs due to unindexed foreign keys.<br>
+    <strong>Solution</strong>: Index foreign key columns and JOIN conditions.</p>
+    
+    <pre class="sql-code"><span class="sql-comment">-- Before: Slow JOIN between 'orders' and 'customers'</span>
+<span class="sql-keyword">SELECT</span> o.order_id, c.customer_name
+<span class="sql-keyword">FROM</span> orders o
+<span class="sql-keyword">JOIN</span> customers c <span class="sql-keyword">ON</span> o.customer_id <span class="sql-operator">=</span> c.customer_id;
+
+<span class="sql-comment">-- Add an index on the foreign key</span>
+<span class="sql-keyword">CREATE INDEX</span> idx_orders_customer_id <span class="sql-keyword">ON</span> orders(customer_id);
+
+<span class="sql-comment">-- (If 'customer_id' is not already indexed in 'customers', add it too)</span>
+<span class="sql-keyword">CREATE INDEX</span> idx_customers_customer_id <span class="sql-keyword">ON</span> customers(customer_id);
+
+<span class="sql-comment">-- After: Faster JOINs due to indexed keys</span></pre>
+    
+    <h3>Bonus: Verify Index Usage</h3>
+    <pre class="sql-code"><span class="sql-comment">-- Check if indexes are being used (PostgreSQL/SQL Server)</span>
+<span class="sql-keyword">EXPLAIN</span> <span class="sql-keyword">SELECT</span> * <span class="sql-keyword">FROM</span> users <span class="sql-keyword">WHERE</span> email <span class="sql-operator">=</span> <span class="sql-value">'user@example.com'</span>;
+
+<span class="sql-comment">-- MySQL alternative</span>
+<span class="sql-keyword">EXPLAIN</span> <span class="sql-keyword">FORMAT=JSON</span> <span class="sql-keyword">SELECT</span> * <span class="sql-keyword">FROM</span> users <span class="sql-keyword">WHERE</span> email <span class="sql-operator">=</span> <span class="sql-value">'user@example.com'</span>;</pre>
+    
+    <p>These examples show how indexing can drastically improve query performance by reducing full table scans. 🚀</p>
+    
+    <div class="footer">
+        Remember: Test changes in non-production environments first!
+    </div>
+    
+    <h1>Practical Examples of Query Optimization</h1>
+    
+    <h2>1. Use EXPLAIN to Analyze Query Plans</h2>
+    <p><strong>Problem</strong>: You don't know why a query is slow.<br>
+    <strong>Solution</strong>: Use EXPLAIN to see the execution plan.</p>
+    
+    <pre class="sql-code"><span class="sql-comment">-- See how MySQL executes this query</span>
+<span class="sql-keyword">EXPLAIN</span> <span class="sql-keyword">SELECT</span> * <span class="sql-keyword">FROM</span> orders <span class="sql-keyword">WHERE</span> customer_id <span class="sql-operator">=</span> <span class="sql-value">100</span>;
+
+<span class="sql-comment">-- PostgreSQL version with more detail</span>
+<span class="sql-keyword">EXPLAIN ANALYZE</span> <span class="sql-keyword">SELECT</span> * <span class="sql-keyword">FROM</span> orders <span class="sql-keyword">WHERE</span> customer_id <span class="sql-operator">=</span> <span class="sql-value">100</span>;
+
+<span class="sql-comment">-- Key things to look for:</span>
+<span class="sql-comment">-- 1. Type of scan (index vs full table)</span>
+<span class="sql-comment">-- 2. Estimated vs actual rows</span>
+<span class="sql-comment">-- 3. Join operations</span></pre>
+    
+    <h2>2. Avoid SELECT * - Only Fetch Needed Columns</h2>
+    <p><strong>Problem</strong>: Fetching unnecessary columns wastes resources.<br>
+    <strong>Solution</strong>: Explicitly list only required columns.</p>
+    
+    <pre class="sql-code"><span class="sql-comment">-- ❌ Bad: Fetching all columns</span>
+<span class="sql-keyword">SELECT</span> * <span class="sql-keyword">FROM</span> products <span class="sql-keyword">WHERE</span> category <span class="sql-operator">=</span> <span class="sql-value">'Electronics'</span>;
+
+<span class="sql-comment">-- ✅ Good: Only retrieving needed data</span>
+<span class="sql-keyword">SELECT</span> product_id, name, price
+<span class="sql-keyword">FROM</span> products
+<span class="sql-keyword">WHERE</span> category <span class="sql-operator">=</span> <span class="sql-value">'Electronics'</span>;
+
+<span class="sql-comment">-- Benefits:</span>
+<span class="sql-comment">-- 1. Less data transferred</span>
+<span class="sql-comment">-- 2. Better index utilization</span>
+<span class="sql-comment">-- 3. More readable code</span></pre>
+    
+    <h2>3. Minimize Subqueries; Use JOINs Instead</h2>
+    <p><strong>Problem</strong>: Nested subqueries often perform poorly.<br>
+    <strong>Solution</strong>: Rewrite using JOIN operations.</p>
+    
+    <pre class="sql-code"><span class="sql-comment">-- ❌ Subquery approach (often slower)</span>
+<span class="sql-keyword">SELECT</span> name
+<span class="sql-keyword">FROM</span> employees
+<span class="sql-keyword">WHERE</span> department_id <span class="sql-keyword">IN</span> (
+    <span class="sql-keyword">SELECT</span> department_id
+    <span class="sql-keyword">FROM</span> departments
+    <span class="sql-keyword">WHERE</span> location <span class="sql-operator">=</span> <span class="sql-value">'New York'</span>
+);
+
+<span class="sql-comment">-- ✅ JOIN approach (typically faster)</span>
+<span class="sql-keyword">SELECT</span> e.name
+<span class="sql-keyword">FROM</span> employees e
+<span class="sql-keyword">JOIN</span> departments d <span class="sql-keyword">ON</span> e.department_id <span class="sql-operator">=</span> d.department_id
+<span class="sql-keyword">WHERE</span> d.location <span class="sql-operator">=</span> <span class="sql-value">'New York'</span>;
+
+<span class="sql-comment">-- Exception: Correlated subqueries with small datasets may be okay</span></pre>
+    
+    <h2>4. Use WHERE Clauses Before GROUP BY/HAVING</h2>
+    <p><strong>Problem</strong>: Filtering after grouping wastes resources.<br>
+    <strong>Solution</strong>: Filter rows first with WHERE.</p>
+    
+    <pre class="sql-code"><span class="sql-comment">-- ❌ Bad: Filtering after grouping</span>
+<span class="sql-keyword">SELECT</span> customer_id, <span class="sql-function">COUNT</span>(*) <span class="sql-keyword">as</span> order_count
+<span class="sql-keyword">FROM</span> orders
+<span class="sql-keyword">GROUP BY</span> customer_id
+<span class="sql-keyword">HAVING</span> customer_id <span class="sql-keyword">IN</span> (<span class="sql-value">100</span>, <span class="sql-value">200</span>, <span class="sql-value">300</span>);
+
+<span class="sql-comment">-- ✅ Good: Filter first</span>
+<span class="sql-keyword">SELECT</span> customer_id, <span class="sql-function">COUNT</span>(*) <span class="sql-keyword">as</span> order_count
+<span class="sql-keyword">FROM</span> orders
+<span class="sql-keyword">WHERE</span> customer_id <span class="sql-keyword">IN</span> (<span class="sql-value">100</span>, <span class="sql-value">200</span>, <span class="sql-value">300</span>)
+<span class="sql-keyword">GROUP BY</span> customer_id;
+
+<span class="sql-comment">-- Remember:</span>
+<span class="sql-comment">-- WHERE filters BEFORE aggregation</span>
+<span class="sql-comment">-- HAVING filters AFTER aggregation</span></pre>
+    
+    <h2>5. Limit Result Sets with LIMIT/TOP</h2>
+    <p><strong>Problem</strong>: Large result sets consume memory and bandwidth.<br>
+    <strong>Solution</strong>: Restrict rows returned.</p>
+    
+    <pre class="sql-code"><span class="sql-comment">-- MySQL/PostgreSQL/SQLite</span>
+<span class="sql-keyword">SELECT</span> * <span class="sql-keyword">FROM</span> logs
+<span class="sql-keyword">WHERE</span> event_date <span class="sql-operator">></span> <span class="sql-value">'2023-01-01'</span>
+<span class="sql-keyword">ORDER BY</span> event_date <span class="sql-keyword">DESC</span>
+<span class="sql-keyword">LIMIT</span> <span class="sql-value">100</span>;  <span class="sql-comment">-- Only get 100 most recent</span>
+
+<span class="sql-comment">-- SQL Server</span>
+<span class="sql-keyword">SELECT TOP</span> <span class="sql-value">100</span> * <span class="sql-keyword">FROM</span> logs
+<span class="sql-keyword">WHERE</span> event_date <span class="sql-operator">></span> <span class="sql-value">'2023-01-01'</span>
+<span class="sql-keyword">ORDER BY</span> event_date <span class="sql-keyword">DESC</span>;
+
+<span class="sql-comment">-- Oracle (12c+)</span>
+<span class="sql-keyword">SELECT</span> * <span class="sql-keyword">FROM</span> logs
+<span class="sql-keyword">WHERE</span> event_date <span class="sql-operator">></span> <span class="sql-keyword">DATE</span> <span class="sql-value">'2023-01-01'</span>
+<span class="sql-keyword">ORDER BY</span> event_date <span class="sql-keyword">DESC</span>
+<span class="sql-keyword">FETCH FIRST</span> <span class="sql-value">100</span> <span class="sql-keyword">ROWS ONLY</span>;
+
+<span class="sql-comment">-- Bonus: Pagination</span>
+<span class="sql-keyword">SELECT</span> * <span class="sql-keyword">FROM</span> products
+<span class="sql-keyword">ORDER BY</span> price <span class="sql-keyword">DESC</span>
+<span class="sql-keyword">LIMIT</span> <span class="sql-value">10</span> <span class="sql-keyword">OFFSET</span> <span class="sql-value">20</span>;  <span class="sql-comment">-- Get rows 21-30</span></pre>
+    
+    <h3>Bonus: Additional Optimization Tips</h3>
+    <pre class="sql-code"><span class="sql-comment">-- 1. Use EXISTS instead of IN for large datasets</span>
+<span class="sql-keyword">SELECT</span> * <span class="sql-keyword">FROM</span> customers c
+<span class="sql-keyword">WHERE EXISTS</span> (
+    <span class="sql-keyword">SELECT</span> <span class="sql-value">1</span> <span class="sql-keyword">FROM</span> orders o
+    <span class="sql-keyword">WHERE</span> o.customer_id <span class="sql-operator">=</span> c.customer_id
+);
+
+<span class="sql-comment">-- 2. Consider materialized views for complex queries</span>
+<span class="sql-keyword">CREATE MATERIALIZED VIEW</span> monthly_sales <span class="sql-keyword">AS</span>
+<span class="sql-keyword">SELECT</span>
+    <span class="sql-function">DATE_TRUNC</span>(<span class="sql-value">'month'</span>, order_date) <span class="sql-keyword">AS</span> month,
+    <span class="sql-function">SUM</span>(amount) <span class="sql-keyword">AS</span> total_sales
+<span class="sql-keyword">FROM</span> orders
+<span class="sql-keyword">GROUP BY</span> <span class="sql-value">1</span>;
+
+<span class="sql-comment">-- 3. Use UNION ALL instead of UNION when possible</span>
+<span class="sql-comment">-- (Avoids duplicate removal overhead)</span></pre>
+    
+    <p>These techniques can dramatically improve query performance when applied correctly. Always test changes with realistic data volumes! 🚀</p>
+    
+    <div class="footer">
+        Remember: Test changes in non-production environments first!
+    </div>
+    
+    <h1>Practical Examples of Advanced SQL Optimization Techniques</h1>
+    
+    <h2>1. Use Materialized Views for Complex Queries</h2>
+    <p><strong>Problem</strong>: Expensive aggregations run repeatedly with the same results.<br>
+    <strong>Solution</strong>: Create pre-computed materialized views.</p>
+    
+    <pre class="sql-code"><span class="sql-comment">-- ❌ Slow recurring aggregation</span>
+<span class="sql-keyword">SELECT</span> product_id, <span class="sql-function">SUM</span>(quantity), <span class="sql-function">AVG</span>(price)
+<span class="sql-keyword">FROM</span> order_items
+<span class="sql-keyword">GROUP BY</span> product_id;  <span class="sql-comment">-- Runs full scan each time</span>
+
+<span class="sql-comment">-- ✅ Create materialized view (PostgreSQL syntax)</span>
+<span class="sql-keyword">CREATE MATERIALIZED VIEW</span> product_sales_mv <span class="sql-keyword">AS</span>
+<span class="sql-keyword">SELECT</span> product_id, <span class="sql-function">SUM</span>(quantity) <span class="sql-keyword">as</span> total_units, <span class="sql-function">AVG</span>(price) <span class="sql-keyword">as</span> avg_price
+<span class="sql-keyword">FROM</span> order_items
+<span class="sql-keyword">GROUP BY</span> product_id;
+
+<span class="sql-comment">-- Refresh periodically (manual or scheduled)</span>
+<span class="sql-keyword">REFRESH MATERIALIZED VIEW</span> product_sales_mv;
+
+<span class="sql-comment">-- Query the pre-computed results</span>
+<span class="sql-keyword">SELECT</span> * <span class="sql-keyword">FROM</span> product_sales_mv <span class="sql-keyword">WHERE</span> total_units <span class="sql-operator">></span> <span class="sql-value">100</span>;
+
+<span class="sql-comment">-- Database Variations:</span>
+<span class="sql-comment">-- Oracle: CREATE MATERIALIZED VIEW ...</span>
+<span class="sql-comment">-- SQL Server: CREATE CLUSTERED COLUMNSTORE INDEX ...</span>
+<span class="sql-comment">-- MySQL: Requires workarounds (temporary tables)</span></pre>
+    
+    <h2>2. Consider Query Hints as Last Resort</h2>
+    <p><strong>Problem</strong>: Query optimizer chooses suboptimal plan.<br>
+    <strong>Solution</strong>: Carefully apply query hints (use sparingly).</p>
+    
+    <pre class="sql-code"><span class="sql-comment">-- SQL Server example (force index usage)</span>
+<span class="sql-keyword">SELECT</span> * <span class="sql-keyword">FROM</span> orders <span class="sql-keyword">WITH</span> (<span class="sql-keyword">INDEX</span>(idx_orders_date))
+<span class="sql-keyword">WHERE</span> order_date <span class="sql-keyword">BETWEEN</span> <span class="sql-value">'2023-01-01'</span> <span class="sql-keyword">AND</span> <span class="sql-value">'2023-12-31'</span>;
+
+<span class="sql-comment">-- MySQL example (force join order)</span>
+<span class="sql-keyword">SELECT</span> <span class="sql-comment">/*+ JOIN_ORDER(c, o) */</span> *
+<span class="sql-keyword">FROM</span> customers c
+<span class="sql-keyword">JOIN</span> orders o <span class="sql-keyword">ON</span> c.customer_id <span class="sql-operator">=</span> o.customer_id;
+
+<span class="sql-comment">-- PostgreSQL example (set work memory)</span>
+<span class="sql-keyword">SET LOCAL</span> work_mem <span class="sql-operator">=</span> <span class="sql-value">'256MB'</span>;
+<span class="sql-keyword">EXPLAIN ANALYZE</span> <span class="sql-keyword">SELECT</span> * <span class="sql-keyword">FROM</span> large_table;
+
+<span class="sql-comment">-- WARNING: Hints can become technical debt</span>
+<span class="sql-comment">-- Always document why a hint was needed</span></pre>
+    
+    <h2>3. Implement Caching at Application Level</h2>
+    <p><strong>Problem</strong>: Repeated identical queries hitting the database.<br>
+    <strong>Solution</strong>: Cache results in application layer.</p>
+    
+    <pre class="sql-code"><span class="sql-comment"># Python example with Redis caching</span>
+<span class="sql-keyword">import</span> redis
+<span class="sql-keyword">import</span> psycopg2
+<span class="sql-keyword">from</span> functools <span class="sql-keyword">import</span> lru_cache
+
+<span class="sql-comment"># Database connection</span>
+conn = psycopg2.connect(<span class="sql-value">"dbname=shop user=admin"</span>)
+
+<span class="sql-comment"># Option 1: In-memory cache (for single process)</span>
+@lru_cache(maxsize=1000)
+<span class="sql-keyword">def</span> get_product_details(product_id):
+    <span class="sql-keyword">with</span> conn.cursor() <span class="sql-keyword">as</span> cur:
+        cur.execute(<span class="sql-value">"SELECT * FROM products WHERE id = %s"</span>, (product_id,))
+        <span class="sql-keyword">return</span> cur.fetchone()
+
+<span class="sql-comment"># Option 2: Distributed cache (Redis)</span>
+r = redis.Redis()
+
+<span class="sql-keyword">def</span> get_top_products():
+    cache_key = <span class="sql-value">"top_products:v2"</span>
+    result = r.get(cache_key)
+    <span class="sql-keyword">if</span> <span class="sql-keyword">not</span> result:
+        <span class="sql-keyword">with</span> conn.cursor() <span class="sql-keyword">as</span> cur:
+            cur.execute(<span class="sql-value">"""
+                SELECT product_id, COUNT(*)
+                FROM order_items
+                GROUP BY product_id
+                ORDER BY 2 DESC LIMIT 10
+            """</span>)
+            result = cur.fetchall()
+            r.setex(cache_key, 3600, pickle.dumps(result))  <span class="sql-comment"># Cache for 1 hour</span>
+        <span class="sql-keyword">return</span> result
+    <span class="sql-keyword">return</span> pickle.loads(result)</pre>
+    
+    <h2>4. Use Stored Procedures for Frequently Executed Queries</h2>
+    <p><strong>Problem</strong>: Network overhead and parsing time for repeated queries.<br>
+    <strong>Solution</strong>: Create compiled stored procedures.</p>
+    
+    <pre class="sql-code"><span class="sql-comment">-- PostgreSQL example</span>
+<span class="sql-keyword">CREATE OR REPLACE FUNCTION</span> get_customer_orders(
+    p_customer_id <span class="sql-keyword">INT</span>,
+    p_limit <span class="sql-keyword">INT DEFAULT</span> <span class="sql-value">100</span>
+) <span class="sql-keyword">RETURNS TABLE</span> (
+    order_id <span class="sql-keyword">INT</span>,
+    order_date <span class="sql-keyword">TIMESTAMP</span>,
+    total_amount <span class="sql-keyword">DECIMAL</span>(<span class="sql-value">10</span>,<span class="sql-value">2</span>)
+) <span class="sql-keyword">AS</span> $$
+<span class="sql-keyword">BEGIN</span>
+    <span class="sql-keyword">RETURN QUERY</span>
+    <span class="sql-keyword">SELECT</span> o.id, o.created_at, <span class="sql-function">SUM</span>(oi.price * oi.quantity)
+    <span class="sql-keyword">FROM</span> orders o
+    <span class="sql-keyword">JOIN</span> order_items oi <span class="sql-keyword">ON</span> o.id <span class="sql-operator">=</span> oi.order_id
+    <span class="sql-keyword">WHERE</span> o.customer_id <span class="sql-operator">=</span> p_customer_id
+    <span class="sql-keyword">GROUP BY</span> o.id
+    <span class="sql-keyword">ORDER BY</span> o.created_at <span class="sql-keyword">DESC</span>
+    <span class="sql-keyword">LIMIT</span> p_limit;
+<span class="sql-keyword">END</span>;
+$$ <span class="sql-keyword">LANGUAGE</span> plpgsql;
+
+<span class="sql-comment">-- Call from application</span>
+<span class="sql-keyword">SELECT</span> * <span class="sql-keyword">FROM</span> get_customer_orders(<span class="sql-value">123</span>, <span class="sql-value">10</span>);
+
+<span class="sql-comment">-- Benefits:</span>
+<span class="sql-comment">-- 1. Reduced network traffic</span>
+<span class="sql-comment">-- 2. Execution plan reuse</span>
+<span class="sql-comment">-- 3. Better security (parameterized)</span>
+<span class="sql-comment">-- 4. Business logic encapsulation</span>
+
+<span class="sql-comment">-- SQL Server example with output parameter</span>
+<span class="sql-keyword">CREATE PROCEDURE</span> GetOrderCount
+    @CustomerId <span class="sql-keyword">INT</span>,
+    @OrderCount <span class="sql-keyword">INT OUTPUT</span>
+<span class="sql-keyword">AS</span>
+<span class="sql-keyword">BEGIN</span>
+    <span class="sql-keyword">SELECT</span> @OrderCount <span class="sql-operator">=</span> <span class="sql-function">COUNT</span>(*)
+    <span class="sql-keyword">FROM</span> orders
+    <span class="sql-keyword">WHERE</span> customer_id <span class="sql-operator">=</span> @CustomerId;
+<span class="sql-keyword">END</span>;</pre>
+    
+    <h3>Bonus: When to Use Each Technique</h3>
+    <table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; margin: 15px 0;">
+        <tr style="background-color: #d6c9a3;">
+            <th>Technique</th>
+            <th>Best For</th>
+            <th>Considerations</th>
+        </tr>
+        <tr>
+            <td>Materialized Views</td>
+            <td>Reporting, dashboards, complex aggregations</td>
+            <td>Refresh strategy is crucial</td>
+        </tr>
+        <tr>
+            <td>Query Hints</td>
+            <td>Emergency fixes for bad plans</td>
+            <td>Can break with schema changes</td>
+        </tr>
+        <tr>
+            <td>Application Caching</td>
+            <td>Read-heavy workloads with repeat queries</td>
+            <td>Cache invalidation is hard</td>
+        </tr>
+        <tr>
+            <td>Stored Procedures</td>
+            <td>High-frequency transactional queries</td>
+            <td>Can lead to vendor lock-in</td>
+        </tr>
+    </table>
+    
+    <p>These advanced techniques can provide order-of-magnitude improvements when basic optimizations aren't enough. Always measure before and after! 🚀</p>
+    
+    <div class="footer">
+        Remember: Test changes in non-production environments first!
+    </div>
+</body>
+</html>
